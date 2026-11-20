@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quiz JavaScript Frontend</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+    color: #f1f5f9;
+    background: linear-gradient(120deg, #020617, #0f172a, #1e1b4b, #082f49, #020617);
+    background-size: 300% 300%;
+    animation: drift 22s ease infinite;
+    min-height: 100vh;
+  }
+  @keyframes drift { 0%,100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+  @keyframes enter { from { opacity: 0; transform: translateY(18px) scale(.98); } to { opacity: 1; transform: none; } }
+  @keyframes shake { 0%,100% { transform: translateX(0); } 20% { transform: translateX(-8px); } 40% { transform: translateX(8px); } 60% { transform: translateX(-5px); } 80% { transform: translateX(5px); } }
+
+  .wrap { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+  .box { width: 100%; max-width: 680px; }
+  .top { display: flex; justify-content: space-between; color: #94a3b8; font-size: 14px; }
+  .prog { height: 6px; margin-top: 10px; background: rgba(255,255,255,.1); border-radius: 99px; overflow: hidden; }
+  .prog div { height: 100%; background: linear-gradient(90deg, #fcd34d, #facc15); transition: width .8s cubic-bezier(.2,.8,.2,1); }
+
+  .card { margin-top: 24px; background: rgba(15,23,42,.75); border: 1px solid rgba(255,255,255,.1); border-radius: 24px; padding: 28px; box-shadow: 0 25px 60px rgba(0,0,0,.45); }
+  .enter { animation: enter .5s cubic-bezier(.2,.8,.2,1) both; }
+  .tag { display: inline-block; background: rgba(250,204,21,.15); color: #fde047; font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; padding: 5px 12px; border-radius: 99px; }
+  .q { font-size: 20px; line-height: 1.5; font-weight: 600; margin-top: 16px; }
+  pre { background: rgba(0,0,0,.5); color: #fef08a; padding: 16px; border-radius: 12px; overflow-x: auto; font-size: 14px; line-height: 1.6; margin-top: 16px; border: 1px solid rgba(255,255,255,.08); }
+
+  .opts { display: grid; gap: 12px; margin-top: 22px; }
+  .shake { animation: shake .45s ease; }
+  .opt { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; padding: 14px 16px; border-radius: 16px; border: 1px solid rgba(255,255,255,.1); background: rgba(30,41,59,.6); color: #e2e8f0; font: inherit; font-size: 16px; line-height: 1.4; cursor: pointer; transition: all .2s; }
+  .opt:hover:not(:disabled) { transform: translateY(-2px); border-color: rgba(250,204,21,.6); background: rgba(30,41,59,.95); }
+  .opt:disabled { cursor: default; }
+  .l { width: 32px; height: 32px; flex-shrink: 0; border-radius: 10px; background: rgba(255,255,255,.1); display: grid; place-items: center; font-weight: 700; font-size: 14px; }
+  .opt.ok { background: rgba(16,185,129,.15); border-color: rgba(52,211,153,.7); color: #d1fae5; }
+  .opt.bad { background: rgba(244,63,94,.15); border-color: rgba(251,113,133,.7); color: #ffe4e6; }
+  .opt.dim { opacity: .45; }
+
+  .exp { margin-top: 18px; padding: 16px; border-radius: 14px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); font-size: 15px; line-height: 1.6; color: #cbd5e1; }
+  .exp b.ok { color: #6ee7b7; }
+  .exp b.bad { color: #fda4af; }
+
+  .actions { display: flex; justify-content: flex-end; margin-top: 22px; }
+  .btn { font: inherit; font-weight: 700; padding: 12px 24px; border-radius: 14px; border: none; background: #facc15; color: #0f172a; cursor: pointer; transition: transform .2s; }
+  .btn:hover:not(:disabled) { transform: scale(1.04); }
+  .btn:disabled { opacity: .3; cursor: default; }
+  .btn.ghost { background: transparent; color: #e2e8f0; border: 1px solid rgba(255,255,255,.2); }
+
+  .ring { position: relative; width: 190px; height: 190px; margin: 0 auto; }
+  .ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .ring .c { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; }
+  .pct { font-size: 38px; font-weight: 900; }
+  .cap { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: #94a3b8; }
+  .res-title { text-align: center; font-size: 22px; font-weight: 700; margin-top: 20px; }
+  .res-msg { text-align: center; color: #cbd5e1; margin-top: 8px; }
+  .bars { margin-top: 28px; display: grid; gap: 16px; }
+  .bar-h { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 6px; color: #e2e8f0; }
+  .bar-h span:last-child { color: #94a3b8; font-weight: 600; }
+  .bar { height: 8px; background: rgba(255,255,255,.1); border-radius: 99px; overflow: hidden; }
+  .bar div { height: 100%; width: 0; background: linear-gradient(90deg, #fcd34d, #facc15); border-radius: 99px; transition: width 1.1s cubic-bezier(.2,.8,.2,1); }
+  .end { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 32px; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+// [tema, pregunta, código opcional, opciones (la primera es la correcta), explicación]
+const RAW = [
+  ["Integración", "¿Cuál es la opción más recomendada para incluir JavaScript en un documento HTML?", null,
+    ["Referencia a un archivo externo con <script src=\"miJavascript.js\">", "Código dentro del atributo onclick de cada elemento", "Todo el código en un bloque <script> al inicio del documento", "Código JavaScript dentro de una etiqueta <style>"],
+    "Separar el código en un archivo .js facilita el mantenimiento y la reutilización."],
+  ["Integración", "¿Por qué no se recomienda escribir JavaScript dentro de atributos HTML como onclick?", null,
+    ["Mezcla la estructura con el comportamiento y dificulta el mantenimiento", "Ningún navegador lo ejecuta", "Solo permite usar números", "Siempre es más lento que cualquier otra opción"],
+    "Lo ideal es separar el contenido (HTML), el formato (CSS) y el comportamiento (JavaScript)."],
+  ["Integración", "¿Qué atributo de la etiqueta script indica la ruta de un archivo externo?", null,
+    ["src", "href", "link", "file"],
+    "El atributo src apunta al archivo .js que se va a cargar."],
+  ["Integración", "Verdadero o falso: el atributo type=\"text/javascript\" es obligatorio en la etiqueta script.", null,
+    ["Falso", "Verdadero"],
+    "En HTML5 no es obligatorio, porque el navegador asume JavaScript por defecto."],
+  ["Integración", "¿Qué papel cumple JavaScript dentro de una página web?", null,
+    ["Añade interacción con el usuario", "Define la estructura del contenido", "Da el formato visual a los elementos", "Almacena las imágenes del sitio"],
+    "HTML define el contenido, CSS el formato y JavaScript la interacción."],
+
+  ["Conceptos", "¿Qué separa las sentencias en un programa de JavaScript?", null,
+    ["El punto y coma (;)", "La coma (,)", "Los dos puntos (:)", "Las llaves { }"],
+    "El punto y coma separa las sentencias. Aunque no es obligatorio, se recomienda usarlo siempre."],
+  ["Conceptos", "¿Qué diferencia hay entre while y WHILE en JavaScript?", null,
+    ["WHILE no es palabra reservada, porque JavaScript distingue mayúsculas de minúsculas", "Son exactamente la misma palabra reservada", "WHILE es más rápido que while", "while solo funciona en Java"],
+    "JavaScript es sensible a mayúsculas: while es la palabra reservada y WHILE no lo es."],
+  ["Conceptos", "¿Cómo se escribe un comentario de una sola línea?", null,
+    ["Con //", "Con /* */", "Con <!-- -->", "Con #"],
+    "Todo lo que sigue a // hasta el final de la línea es un comentario."],
+  ["Conceptos", "¿Cómo se escribe un comentario de varias líneas?", null,
+    ["Entre /* y */", "Entre <!-- y -->", "Con # al inicio de cada línea", "Con -- al inicio de cada línea"],
+    "Los comentarios de varias líneas se escriben entre /* y */."],
+  ["Conceptos", "Verdadero o falso: JavaScript ignora los espacios en blanco y saltos de línea entre palabras reservadas.", null,
+    ["Verdadero", "Falso"],
+    "Los espacios, tabuladores y saltos de línea se ignoran, aunque el sangrado mejora la legibilidad."],
+
+  ["Variables", "¿Qué palabra reservada se usa para declarar variables en el tema tradicional de JavaScript?", null,
+    ["var", "int", "string", "dim"],
+    "La palabra reservada var declara variables. int y string no existen en JavaScript."],
+  ["Variables", "¿Cuál de estos es un nombre de variable válido?", null,
+    ["_total2", "2total", "mi-var", "class"],
+    "Puede contener letras, dígitos y guiones bajos. No puede empezar con un dígito, ni contener guiones, ni ser palabra reservada."],
+  ["Variables", "Si se declara var x; sin asignarle valor, ¿qué valor tiene?", null,
+    ["undefined", "0", "null", "Produce un error"],
+    "Una variable declarada y no inicializada tiene el valor undefined."],
+  ["Variables", "Verdadero o falso: en JavaScript una misma variable puede guardar un número y luego una cadena.", null,
+    ["Verdadero", "Falso"],
+    "El tipado es dinámico: la misma variable puede almacenar distintos tipos de datos."],
+  ["Variables", "¿Qué significa que JavaScript tenga tipado dinámico?", null,
+    ["El tipo depende del valor asignado y puede cambiar durante la ejecución", "El programador debe declarar el tipo siempre", "Solo se pueden guardar números", "Las variables no pueden reasignarse"],
+    "No hace falta declarar el tipo. Una variable puede cambiar de tipo según el valor que reciba."],
+
+  ["Operadores", "Si a = 3 + 2 y luego se ejecuta a += 6, ¿cuál es el valor de a?", "var a = 3 + 2;\na += 6;",
+    ["11", "5", "6", "8"],
+    "a empieza valiendo 5. a += 6 equivale a a = a + 6, por lo que a vale 11."],
+  ["Operadores", "Si a vale 11, ¿cuánto vale b después de var b = a * 7;?", "var b = a * 7;",
+    ["77", "18", "7", "88"],
+    "11 multiplicado por 7 es 77."],
+  ["Operadores", "Con a = 11 y b = 77, ¿qué devuelve la expresión a < b?", "a < b;",
+    ["true", "false", "undefined", "11"],
+    "11 es menor que 77, así que la comparación es verdadera."],
+  ["Operadores", "Con a = 11 y b = 77, ¿qué devuelve la expresión a >= b?", "a >= b;",
+    ["false", "true", "0", "null"],
+    "11 no es mayor o igual que 77, por lo que el resultado es false."],
+  ["Operadores", "¿Qué operador compara valor y tipo al mismo tiempo?", null,
+    ["===", "=", "==", "=>"],
+    "= asigna, == compara convirtiendo tipos y === compara valor y tipo sin conversión."],
+
+  ["Alcance", "¿En qué año se introdujo la palabra clave let en JavaScript?", null,
+    ["2015, con ES6", "1995", "2000", "2020"],
+    "let llegó con ES6, la versión de JavaScript publicada en 2015."],
+  ["Alcance", "¿Cuál es la diferencia principal entre let y var?", null,
+    ["let tiene alcance de bloque; var no", "var solo admite números", "let siempre es global", "No hay ninguna diferencia"],
+    "let limita la variable al bloque donde se declara. var no respeta los bloques."],
+  ["Alcance", "¿Qué imprime este código?", "var a = 5;\nif (a === 5) {\n  let a = 4;\n  console.log(a);\n}",
+    ["4", "5", "undefined", "Produce un error"],
+    "Dentro del bloque, let a = 4 crea una variable nueva que solo existe en ese bloque, así que se imprime 4."],
+  ["Alcance", "¿Qué imprime este código?", "var b = 10;\nif (b === 10) {\n  var b = 1;\n}\nconsole.log(b);",
+    ["1", "10", "undefined", "Produce un error"],
+    "var no respeta el bloque if. La segunda declaración reemplaza el valor de b, por lo que se imprime 1."],
+
+  ["Condicionales", "En una estructura if...else, ¿qué bloque se ejecuta cuando la condición es false?", null,
+    ["El bloque else", "El bloque if", "Ambos bloques", "Ninguno de los dos"],
+    "Si la condición se evalúa a false, se ejecutan las instrucciones del else."],
+  ["Condicionales", "En un switch, ¿qué instrucción evita que se ejecuten los casos siguientes?", null,
+    ["break", "continue", "default", "case"],
+    "break termina el switch. Sin él, la ejecución sigue con el siguiente case."],
+  ["Condicionales", "¿Qué bloque de un switch se ejecuta si ningún case coincide?", null,
+    ["default", "break", "else", "case final"],
+    "El bloque default es opcional y se ejecuta cuando no coincide ningún case."],
+
+  ["Bucles", "¿Qué tres partes se escriben dentro del paréntesis de un for?", null,
+    ["Inicialización, condición y actualización", "Condición, bloque y break", "Declaración, retorno y alcance", "Inicio, fin y paso de línea"],
+    "La cabecera del for es for (inicialización; condición; actualización) { ... }."],
+  ["Bucles", "¿Qué imprime este código?", "for (let i = 0; i < 3; i++) {\n  console.log(i);\n}",
+    ["0 1 2", "1 2 3", "0 1 2 3", "3 2 1"],
+    "i empieza en 0, se repite mientras sea menor que 3 y aumenta de uno en uno."],
+  ["Bucles", "¿Cuándo se ejecutan las instrucciones de un while?", null,
+    ["Mientras la condición sea true", "Una sola vez siempre", "Solo si la condición es false", "Al cargar la página"],
+    "El while repite el bloque mientras la condición se evalúe como true."],
+
+  ["Funciones", "En el ejemplo de multiplicar(a, b) del documento, ¿cuánto devuelve multiplicar(2, 3)?", "function multiplicar(a, b) {\n  var prod = 0;\n  var i = 1;\n  while (i <= b) {\n    prod += a;\n    i++;\n  }\n  return prod;\n}",
+    ["6", "5", "23", "Produce un error"],
+    "La función suma 2 tres veces (2 + 2 + 2), por lo que devuelve 6."],
+  ["Funciones", "Con la misma función multiplicar, ¿cuánto devuelve multiplicar(10, 100)?", null,
+    ["1000", "110", "100", "10"],
+    "La función suma 10 cien veces, lo que da 1000."],
+  ["Funciones", "¿Para qué sirve la instrucción return en una función?", null,
+    ["Devolver un valor a quien llamó la función", "Declarar variables globales", "Imprimir siempre en la consola", "Terminar el programa completo"],
+    "return entrega un resultado al código que invocó la función."],
+  ["Funciones", "¿Qué es una función flecha (arrow function)?", "() => {\n  // cuerpo de la función\n}",
+    ["Una función anónima con sintaxis concisa", "Un bucle infinito", "Un tipo de variable", "Un evento del DOM"],
+    "Es la forma moderna y compacta de escribir una función lambda, sin nombre."],
+
+  ["Arreglos", "Con var lista = [12, 10, 4, 35];, ¿cuál es el valor de lista[1]?", "var lista = [12, 10, 4, 35];",
+    ["10", "12", "4", "35"],
+    "Los índices empiezan en 0, así que lista[1] es el segundo elemento: 10."],
+  ["Arreglos", "En un arreglo de N elementos, ¿cuál es el índice del último elemento?", null,
+    ["N-1", "N", "N+1", "1"],
+    "Los elementos están numerados de 0 a N-1."],
+  ["Arreglos", "Si un arreglo tiene 4 elementos, ¿qué devuelve arr[7]?", null,
+    ["undefined", "0", "null", "Produce un error"],
+    "Un índice fuera de rango devuelve undefined."],
+  ["Arreglos", "¿Qué propiedad indica el número de elementos de un arreglo?", null,
+    ["length", "size", "count", "len"],
+    "En JavaScript se usa lista.length para conocer el tamaño del arreglo."],
+
+  ["Cadenas", "Con var cadena = \"hola\" + \" mundo\";, ¿qué muestra console.log(cadena[0])?", "var cadena = \"hola\" + \" mundo\";\nconsole.log(cadena[0]);",
+    ["h", "hola", "o", "mundo"],
+    "Las cadenas se pueden recorrer por índice, como los arreglos. El índice 0 es la primera letra."],
+  ["Cadenas", "¿Qué método equivale al operador + aplicado a cadenas?", null,
+    ["concat()", "split()", "slice()", "join()"],
+    "El operador + une cadenas, igual que el método concat()."],
+
+  ["Window", "¿Qué método muestra un mensaje en un cuadro sin pedir respuesta?", null,
+    ["alert()", "prompt()", "confirm()", "location()"],
+    "alert() presenta un mensaje en el navegador."],
+  ["Window", "¿Qué método solicita al usuario que escriba un dato?", null,
+    ["prompt()", "alert()", "confirm()", "write()"],
+    "prompt() muestra una línea de edición para que el usuario escriba algo."],
+  ["Window", "¿Qué devuelve confirm() según la respuesta del usuario?", null,
+    ["true o false", "Un texto", "Un número", "Nada, siempre undefined"],
+    "confirm() devuelve true si el usuario acepta y false si cancela."],
+  ["Window", "Si nombre = prompt(\"Dime tu nombre\") y el usuario escribe Ana, ¿qué imprime console.log(\"Tu nombre es: \" + nombre)?", "var nombre = prompt(\"Dime tu nombre\");\nconsole.log(\"Tu nombre es: \" + nombre);",
+    ["Tu nombre es: Ana", "Tu nombre es: undefined", "Tu nombre es: prompt", "Produce un error"],
+    "prompt devuelve lo escrito por el usuario, que se guarda en nombre y se concatena al mensaje."],
+  ["Window", "¿Para qué sirve el objeto location del objeto window?", null,
+    ["Para obtener la URL actual o cargar otra página", "Para medir la posición del mouse", "Para guardar datos localmente", "Para mostrar la hora"],
+    "location contiene la URL de la página actual y permite cargar otra con location.assign(URL)."],
+
+  ["Eventos", "¿Qué evento se produce al hacer doble clic sobre un elemento?", null,
+    ["ondblclick", "onclick", "onmouseover", "onchange"],
+    "ondblclick se dispara con un doble clic, mientras que onclick se dispara con un solo clic."],
+  ["Eventos", "¿Cuándo se dispara el evento onchange en una casilla de texto?", null,
+    ["Cuando cambia el valor y el usuario sale de la casilla", "Con cada tecla pulsada", "Al cargar la página", "Solo al presionar Enter"],
+    "onchange requiere que el valor se modifique y que el elemento pierda el foco."],
+  ["Eventos", "¿Qué diferencia hay entre onmouseover y onmouseout?", null,
+    ["onmouseover ocurre al entrar el cursor y onmouseout al salir", "onmouseover ocurre al salir y onmouseout al entrar", "Ambos ocurren al hacer clic", "Ambos ocurren al cargar la página"],
+    "over indica que el cursor entra en el elemento y out indica que lo abandona."],
+  ["Eventos", "¿Qué evento se produce al enviar un formulario?", null,
+    ["onsubmit", "onreset", "onfocus", "onselect"],
+    "onsubmit se ejecuta al enviar el formulario, y onreset al pulsar el botón de restablecer."],
+  ["Eventos", "¿Qué evento se produce al pulsar una tecla?", null,
+    ["onkeydown", "onblur", "onselect", "onreset"],
+    "onkeydown se produce al pulsar una tecla, onkeyup al soltarla."],
+  ["Eventos", "¿Qué diferencia hay entre onfocus y onblur?", null,
+    ["onfocus ocurre al entrar al elemento y onblur al perder el foco", "onfocus ocurre al perder el foco y onblur al entrar", "Ambos ocurren al cargar la página", "Son sinónimos de onclick"],
+    "onfocus indica que el elemento recibe el foco y onblur que lo pierde."],
+  ["Eventos", "En la función verificar() de un onsubmit, ¿qué valor se debe devolver para impedir el envío?", "<form onsubmit=\"return verificar()\">",
+    ["false", "true", "undefined", "null"],
+    "Si la función devuelve false, el envío del formulario se cancela."],
+
+  ["DOM", "¿Qué representa el objeto document?", null,
+    ["El árbol DOM de la página", "La ventana del navegador", "La URL actual", "La consola del desarrollador"],
+    "document da acceso al árbol de etiquetas HTML de la página mediante el DOM."],
+  ["DOM", "¿Qué método devuelve el primer elemento que coincide con un selector?", null,
+    ["querySelector()", "querySelectorAll()", "getElementsByTagName()", "createElement()"],
+    "querySelector() devuelve la primera coincidencia; querySelectorAll() devuelve todas."],
+  ["DOM", "¿Qué devuelve querySelectorAll()?", null,
+    ["Todas las coincidencias del selector", "Solo el primer elemento", "Solo el elemento con id", "Un texto con el resultado"],
+    "querySelectorAll() devuelve todas las coincidencias del selector."],
+  ["DOM", "¿Qué selector CSS busca el elemento con id miID?", "document.querySelector(\"#miID\");",
+    ["#miID", ".miID", "miID", "*miID"],
+    "El símbolo # se usa para buscar por id en un selector."],
+  ["DOM", "¿Qué selector busca los elementos con la clase example?", "document.querySelectorAll(\".example\");",
+    [".example", "#example", "example", "<example>"],
+    "El punto indica que se busca por clase."],
+  ["DOM", "¿Qué busca document.getElementById(\"demo\")?", null,
+    ["Un elemento por su id", "Elementos por clase", "Elementos por etiqueta", "Elementos por nombre"],
+    "getElementById busca exclusivamente por el atributo id."],
+
+  ["Propiedades DOM", "¿Qué propiedad permite leer o cambiar lo que escribe el usuario en un campo de formulario?", "var x = document.getElementById(\"myText\").value;",
+    ["value", "innerHTML", "textContent", "style"],
+    "value obtiene o cambia el contenido de un elemento de formulario."],
+  ["Propiedades DOM", "¿Qué diferencia hay entre innerHTML y textContent?", null,
+    ["innerHTML interpreta etiquetas HTML; textContent solo maneja texto", "textContent interpreta etiquetas; innerHTML no", "No hay diferencia", "innerHTML solo lee números"],
+    "innerHTML permite insertar etiquetas HTML, mientras que textContent trabaja solo con texto."],
+  ["Propiedades DOM", "¿Qué propiedad devuelve el texto de un elemento incluso si está oculto?", null,
+    ["textContent", "innerText", "value", "innerHTML"],
+    "textContent incluye el texto de elementos ocultos, a diferencia de innerText."],
+  ["Propiedades DOM", "¿Qué método añade texto al final de un div?", "document.getElementById(\"myDiv\").append(\"Hello\");",
+    ["append()", "remove()", "style()", "value()"],
+    "append() agrega contenido al final del elemento."],
+  ["Propiedades DOM", "¿Qué hace element.remove()?", "const element = document.getElementById(\"demo\");\nelement.remove();",
+    ["Elimina el elemento del documento", "Oculta el elemento", "Vacía su valor", "Clona el elemento"],
+    "remove() quita el elemento del DOM."],
+  ["Propiedades DOM", "¿Cuál es la forma correcta de cambiar a azul el color del texto del elemento p2?", null,
+    ["document.getElementById(\"p2\").style.color = \"blue\";", "document.getElementById(\"p2\").color = \"blue\";", "document.getElementById(\"p2\").css = \"blue\";", "document.getElementById(\"p2\").setColor(\"blue\");"],
+    "Los estilos se modifican a través de la propiedad style del elemento."],
+
+  ["Eventos en código", "¿Qué método agrega un evento de clic a un elemento sin usar atributos HTML?", null,
+    ["addEventListener(\"click\", función)", "onclick()", "setClick()", "listen()"],
+    "addEventListener permite asociar eventos desde JavaScript y añadir varios al mismo elemento."],
+  ["Eventos en código", "¿Qué hace este código?", "document.querySelector(\"#btn\").onclick = () => {\n  alert(\"Hola\");\n};",
+    ["Muestra Hola al hacer clic en el botón #btn", "Muestra Hola al cargar la página", "Elimina el botón", "Cambia el color del botón"],
+    "Al asignar una función a onclick, se ejecuta cada vez que se hace clic en el botón."],
+  ["Eventos en código", "Con element.addEventListener(\"mouseover\", myFunction);, ¿cuándo se ejecuta myFunction?", null,
+    ["Cuando el cursor entra al elemento", "Al hacer clic", "Al salir del elemento", "Al cargar la página"],
+    "mouseover se dispara cuando el cursor pasa por encima del elemento."],
+
+  ["API y fetch", "¿Qué es una API?", null,
+    ["Un conjunto de reglas que permite a programas comunicarse entre sí", "Un lenguaje de programación", "Un navegador web", "Un tipo de base de datos"],
+    "Una API define cómo pedir y recibir información entre sistemas."],
+  ["API y fetch", "¿Qué devuelve la función fetch()?", null,
+    ["Una Promise", "Un texto", "Un número", "Un elemento HTML"],
+    "fetch() devuelve una Promise, que se resuelve con la respuesta de la petición."],
+  ["API y fetch", "En el ejemplo GET, ¿para qué sirve .then(response => response.json())?", "fetch('https://jsonplaceholder.typicode.com/posts/1')\n  .then(response => response.json())",
+    ["Para convertir la respuesta a JSON", "Para enviar datos por POST", "Para cancelar la petición", "Para crear un elemento"],
+    "response.json() transforma la respuesta del servidor en un objeto de JavaScript."],
+  ["API y fetch", "En el ejemplo POST del documento, ¿qué método HTTP se utiliza?", null,
+    ["POST", "GET", "DELETE", "PUT"],
+    "El ejemplo envía datos al servidor con el método POST."],
+  ["API y fetch", "¿Para qué sirve JSON.stringify() en el ejemplo POST?", "body: JSON.stringify({ title: \"Hola mundo\" })",
+    ["Convierte los datos en texto JSON para enviarlos", "Lee la respuesta del servidor", "Cambia el método HTTP", "Crea una Promise"],
+    "JSON.stringify transforma el objeto en texto con formato JSON."],
+  ["API y fetch", "¿Para qué sirve el bloque .catch() en una petición con fetch?", ".catch(error => console.error('Error:', error));",
+    ["Manejar los errores de la petición", "Confirmar el envío", "Convertir la respuesta a JSON", "Iniciar un bucle"],
+    "catch se ejecuta cuando la petición falla."],
+  ["API y fetch", "¿Cuál es un ejemplo cotidiano de uso de una API?", null,
+    ["Una app del clima que muestra la temperatura actual", "Un teclado físico", "Un cable HDMI", "Un monitor"],
+    "La app pide datos del clima a un servidor mediante una API y los muestra en pantalla."]
+];
+
+const ITEMS = RAW.map(([t, q, c, o, e]) => ({ t, q, c, o, e }));
+const C = 2 * Math.PI * 52;
+const app = document.getElementById("app");
+let S = { deck: [], idx: 0, sel: null, log: [], done: false, fresh: true };
+
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const t = a[i]; a[i] = a[j]; a[j] = t;
+  }
+  return a;
+}
+
+function build(items) {
+  return shuffle(items).map(base => ({
+    t: base.t, q: base.q, c: base.c, base: base,
+    opts: shuffle(base.o.map((text, i) => ({ text: text, ok: i === 0 })))
+  }));
+}
+
+function esc(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function score() { return S.log.filter(x => x.ok).length; }
+
+function renderQuiz() {
+  const cur = S.deck[S.idx];
+  const n = S.deck.length;
+  const answered = S.sel !== null;
+  const opts = cur.opts.map((o, i) => {
+    let cls = "opt";
+    if (answered) {
+      if (o.ok) cls += " ok";
+      else if (i === S.sel) cls += " bad";
+      else cls += " dim";
+    }
+    return '<button class="' + cls + '" data-opt="' + i + '"' + (answered ? " disabled" : "") + '>' +
+      '<span class="l">' + "ABCD"[i] + '</span><span>' + esc(o.text) + '</span></button>';
+  }).join("");
+  const exp = answered
+    ? '<div class="exp"><b class="' + (cur.opts[S.sel].ok ? "ok" : "bad") + '">' +
+      (cur.opts[S.sel].ok ? "Correcto." : "Incorrecto.") + '</b> ' + esc(cur.base.e) + '</div>'
+    : "";
+  const last = S.idx + 1 === n;
+  app.innerHTML =
+    '<div class="wrap"><div class="box">' +
+      '<div class="top"><span>Pregunta ' + (S.idx + 1) + ' de ' + n + '</span><span>Aciertos ' + score() + '</span></div>' +
+      '<div class="prog"><div style="width:' + (S.idx / n) * 100 + '%"></div></div>' +
+      '<div class="card' + (S.fresh ? " enter" : "") + '">' +
+        '<span class="tag">' + esc(cur.t) + '</span>' +
+        '<h2 class="q">' + esc(cur.q) + '</h2>' +
+        (cur.c ? '<pre><code>' + esc(cur.c) + '</code></pre>' : "") +
+        '<div class="opts" id="opts">' + opts + '</div>' +
+        exp +
+        '<div class="actions"><button class="btn" data-next="1"' + (answered ? "" : " disabled") + '>' +
+          (last ? "Ver resultados" : "Siguiente") + '</button></div>' +
+      '</div>' +
+    '</div></div>';
+}
+
+function renderResults() {
+  const n = S.deck.length;
+  const sc = score();
+  const pct = Math.round((sc / n) * 100);
+  const stats = {};
+  S.log.forEach(x => {
+    stats[x.t] = stats[x.t] || { ok: 0, total: 0 };
+    stats[x.t].total++;
+    if (x.ok) stats[x.t].ok++;
+  });
+  const errs = S.log.filter(x => !x.ok).map(x => x.base);
+  const msg = pct >= 90 ? "Dominio excelente de los fundamentos de JavaScript."
+    : pct >= 70 ? "Muy buen resultado. Repasa las secciones con menor puntaje."
+    : pct >= 50 ? "Buen avance. Refuerza variables, bucles y eventos."
+    : "Vuelve a revisar el material y repite el cuestionario.";
+  const bars = Object.keys(stats).map(t => {
+    const v = stats[t];
+    const p = Math.round((v.ok / v.total) * 100);
+    return '<div><div class="bar-h"><span>' + esc(t) + '</span><span>' + v.ok + ' / ' + v.total + '</span></div>' +
+      '<div class="bar"><div data-w="' + p + '"></div></div></div>';
+  }).join("");
+  app.innerHTML =
+    '<div class="wrap"><div class="box"><div class="card enter">' +
+      '<div class="ring"><svg viewBox="0 0 120 120">' +
+        '<circle cx="60" cy="60" r="52" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="10"/>' +
+        '<circle id="aro" cx="60" cy="60" r="52" fill="none" stroke="#facc15" stroke-width="10" stroke-linecap="round" ' +
+          'stroke-dasharray="' + C + '" style="stroke-dashoffset:' + C + ';transition:stroke-dashoffset 1.4s cubic-bezier(.2,.8,.2,1)"/>' +
+      '</svg><div class="c"><div><div class="pct">' + pct + '%</div><div class="cap">Puntaje</div></div></div></div>' +
+      '<div class="res-title">' + sc + ' de ' + n + ' respuestas correctas</div>' +
+      '<div class="res-msg">' + msg + '</div>' +
+      '<div class="bars">' + bars + '</div>' +
+      '<div class="end">' +
+        '<button class="btn ghost" data-act="repasar"' + (errs.length ? "" : " disabled") + '>Repasar ' + errs.length + ' ' + (errs.length === 1 ? "error" : "errores") + '</button>' +
+        '<button class="btn" data-act="reiniciar">Empezar de nuevo</button>' +
+      '</div>' +
+    '</div></div></div>';
+  setTimeout(() => {
+    document.getElementById("aro").style.strokeDashoffset = C * (1 - pct / 100);
+    document.querySelectorAll(".bar div").forEach(d => { d.style.width = d.dataset.w + "%"; });
+  }, 120);
+}
+
+function reset(items) {
+  S = { deck: build(items), idx: 0, sel: null, log: [], done: false, fresh: true };
+  renderQuiz();
+}
+
+function pick(i) {
+  if (S.done || S.sel !== null) return;
+  const cur = S.deck[S.idx];
+  const o = cur.opts[i];
+  if (!o) return;
+  S.sel = i;
+  S.fresh = false;
+  S.log.push({ t: cur.t, ok: o.ok, base: cur.base });
+  renderQuiz();
+  if (!o.ok) document.getElementById("opts").classList.add("shake");
+}
+
+function next() {
+  if (S.sel === null) return;
+  S.idx++;
+  S.sel = null;
+  S.fresh = true;
+  if (S.idx >= S.deck.length) { S.done = true; renderResults(); }
+  else renderQuiz();
+}
+
+app.addEventListener("click", e => {
+  const opt = e.target.closest("[data-opt]");
+  if (opt) { pick(Number(opt.dataset.opt)); return; }
+  if (e.target.closest("[data-next]")) { next(); return; }
+  const act = e.target.closest("[data-act]");
+  if (act) {
+    if (act.dataset.act === "reiniciar") reset(ITEMS);
+    else reset(S.log.filter(x => !x.ok).map(x => x.base));
+  }
+});
+
+document.addEventListener("keydown", e => {
+  if (S.done || e.key.length !== 1 && e.key !== "Enter") return;
+  const k = e.key.toLowerCase();
+  if (k.length === 1 && "1234".indexOf(k) !== -1) pick(Number(k) - 1);
+  else if (k.length === 1 && "abcd".indexOf(k) !== -1) pick("abcd".indexOf(k));
+  else if ((e.key === "Enter" || e.key === " ") && S.sel !== null) { e.preventDefault(); next(); }
+});
+
+reset(ITEMS);
+</script>
+</body>
+</html>
